@@ -14,6 +14,7 @@ import sys
 import pymongo
 from pymongo import MongoClient
 import os
+from random import randint, uniform
 
 app = Flask(__name__)
 
@@ -33,23 +34,23 @@ app = Flask(__name__)
 
 
 def hnrequest(username, password, url):
-	postId = url.split("?")[1].substring(3)
-
+	postId = url.split("?")[1][3:]
 	driver = webdriver.Chrome("./chromedriver")
 	login(driver, username, password)
 	upvotePostById(driver, postId)
 
 def upvotePostById(driver, postId):
-	driver.get('https://news.ycombinator.com/newslogin?whence=news')
+	driver.get('https://news.ycombinator.com/newest')
 	time.sleep(.5)
 	newestCount = 0
-	while(0):
+	while(newestCount < 4):
+		print 'newestCount ' + str(newestCount)
 		allIds = driver.execute_script("""
 			var allIds = [];
 			var comheads = document.getElementsByClassName('comhead');
 			for(var i = 0; i < comheads.length; i++) {
-				var rawId = document.getElementsByClassName('comhead')[0].parentNode.parentNode.children[1].children[0].children[0].id;
-				var thisId = rawId.substring(3, thisId.length);
+				var rawId = document.getElementsByClassName('comhead')[i].parentNode.parentNode.children[1].children[0].children[0].id;
+				var thisId = rawId.substring(3, rawId.length);
 				allIds.push(thisId);
 			}
 			return allIds;
@@ -58,7 +59,7 @@ def upvotePostById(driver, postId):
 			var allTitles = [];
 			var comheads = document.getElementsByClassName('comhead');
 			for(var i = 0; i < comheads.length; i++) {
-				var title = comHeadDivs[i].parentNode.children[0].textContent;
+				var title = comheads[i].parentNode.children[0].textContent;
 				allTitles.push(title);
 			}
 			return allTitles;
@@ -74,17 +75,74 @@ def upvotePostById(driver, postId):
 		""")
 		for t in range(len(allIds)):
 			if postId == allIds[t]:
-				driver.execute_script("""
+				print 'new - votefound'
+				voteStatus = driver.execute_script("""
 					var postLink = document.getElementById('%s');
 					postLink.click();
 					if(postlink.getAttribute('style').substring("visibility1").length === 19) {
-						
+						return "true"
+					}
+					else {
+						return "false"
 					}
 				""" %(postId))
-
-		if newestCount == 5:
-			break
+				if voteStatus == "true":
+					return True
 		newestCount = newestCount + 1
+
+	driver.get('https://news.ycombinator.com/')
+	popularCount = 0
+	while(popularCount < 4):
+		
+		print 'popularCount ' + str(popularCount)
+		allIds = driver.execute_script("""
+			var allIds = [];
+			var comheads = document.getElementsByClassName('comhead');
+			for(var i = 0; i < comheads.length; i++) {
+				var rawId = document.getElementsByClassName('comhead')[i].parentNode.parentNode.children[1].children[0].children[0].id;
+				var thisId = rawId.substring(3, rawId.length);
+				allIds.push(thisId);
+			}
+			return allIds;
+		""")
+		allTitles = driver.execute_script("""
+			var allTitles = [];
+			var comheads = document.getElementsByClassName('comhead');
+			for(var i = 0; i < comheads.length; i++) {
+				var title = comheads[i].parentNode.children[0].textContent;
+				allTitles.push(title);
+			}
+			return allTitles;
+		""")
+		allComheads = driver.execute_script("""
+			var allComheads = [];
+			var comheads = document.getElementsByClassName('comhead');
+			for(var i = 0; i < comheads.length; i++) {
+				var rawcom = comheads[i].textContent.trim();
+				allComheads.push(rawcom.substring(1, rawcom.length - 1));
+			}
+			return allComheads;
+		""")
+		for t in range(len(allIds)):
+			if postId == allIds[t]:
+				print 'popular - votefound'
+				voteStatus = driver.execute_script("""
+					var postLink = document.getElementById('up_%s');
+					postLink.click();
+					if(postLink.getAttribute('style').substring("visibility1").length === 19) {
+						return "true"
+					}
+					else {
+						return "false"
+					}
+				""" %(postId))
+				if voteStatus == "true":
+					return True
+		popularCount = popularCount + 1
+
+	return False
+
+
 
 
 
@@ -195,7 +253,7 @@ def findPost(driver, postId, postTitle):
 		var allTitles = [];
 		var comheads = document.getElementsByClassName('comhead');
 		for(var i = 0; i < comheads.length; i++) {
-			var title = comHeadDivs[i].parentNode.children[0].textContent;
+			var title = comheads[i].parentNode.children[0].textContent;
 			allTitles.push(title);
 		}
 		return allTitles;
@@ -212,7 +270,7 @@ def goToNextPage(driver):
 		moreLink.click();
 	""")
 
-hackNewsById('aaln', 'hello123', "7922748")
+hnrequest('aaln', 'hello123', "https://news.ycombinator.com/item?id=7926990")
 """
 @app.route('/', methods=['GET'])
 def home():
